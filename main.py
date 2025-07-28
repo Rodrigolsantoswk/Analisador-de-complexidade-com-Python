@@ -83,12 +83,12 @@ def analisador(lines):
     print(f"Complexidade no pior caso: {piorCaso}")
     print(f"Complexidade no melhor caso: {melhorCaso}")
 
-    print("\nCusto computacional:")
+    print("\nAnálise Assintótica:")
     print(f"Custo 1 (operações e comparações): {oper}")
     print(f"Custo N (loops): {repet}")
     print(f"Custo total estimado: {custo_total}")
 
-    print("\nAnálise Assintótica:")
+    print("\nNotação Assintótica:")
     print(f"Big O: {piorCaso}")
     print(f"Big Omega: {melhorCaso}")
     print(f"Big Theta: {bigTheta}")

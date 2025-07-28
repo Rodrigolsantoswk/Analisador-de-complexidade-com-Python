@@ -4,14 +4,11 @@ import os
 def contar_operacoes(line):
     operadores = ['+', '-', '*', '/', '==', '!=', '<=', '>=', '<', '>']
     palavras_chave = ['return', 'print', 'pass', 'break', 'continue']
-
     if any(op in line for op in operadores):
         return 1
-
     line_strip = line.strip()
-    if any(line_strip.startswith(pal) for pal in palavras_chave):
+    if any(line_strip.startswith(palavra) for palavra in palavras_chave):
         return 1
-
     return 0
 
 
@@ -98,7 +95,7 @@ def analisador(lines):
 
 
 def main():
-    diretorio = "algoritmo.py"
+    diretorio = "fatorial.py"
     try:
         if os.path.exists(diretorio):
             with open(diretorio, encoding="utf-8") as f:

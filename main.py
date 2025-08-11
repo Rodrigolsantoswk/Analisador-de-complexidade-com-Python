@@ -1,4 +1,5 @@
 import os
+import sys
 
 
 def contar_operacoes(line):
@@ -7,39 +8,72 @@ def contar_operacoes(line):
     if any(op in line for op in operadores):
         return 1
     line_strip = line.strip()
-    if any(line_strip.startswith(palavra) for palavra in palavras_chave):
+    if any(line_strip.startswith(p) for p in palavras_chave):
         return 1
     return 0
 
 
-def calculadoraDeComplexidade(recursoes, profundidadeMax, temCondicional, repet, oper):
-    if recursoes > 1:
-        pior = melhor = "O(2^n)"
+def calculadoraDeComplexidade(
+    total_recursoes,
+    profundidadeMax,
+    temCondicional,
+    repet,
+    oper,
+    dividirParaConquistar=False,
+    temParticionamento=False,
+    pivotFixado=False
+):
+    pior = melhor = "O(1)"
+    custo_total = f"{oper}"
+
+    if dividirParaConquistar and temParticionamento and total_recursoes >= 2:
+        if pivotFixado:
+            pior = "O(n^2)"
+            melhor = "O(n log n)"
+            custo_total = f"n log n + {oper}"
+        else:
+            pior = "O(n log n)"
+            melhor = "O(n log n)"
+            custo_total = f"n log n + {oper}"
+    elif total_recursoes >= 2:
+        pior = "O(2^n)"
+        melhor = "O(1)"
         custo_total = f"2^n + {oper}"
-    elif recursoes == 1:
-        pior = melhor = "O(n)"
-        custo_total = f"n + {oper}"
+    elif total_recursoes == 1:
+        if repet == 0:
+            pior = melhor = "O(n)"
+            custo_total = f"n + {oper}"
+        else:
+            expo = max(2, profundidadeMax + 1)
+            pior = melhor = f"O(n^{expo})"
+            custo_total = f"{repet}n^{expo} + {oper}"
     elif profundidadeMax > 0:
-        pior = f"O(n^{profundidadeMax})"
-        melhor = "O(1)" if temCondicional and profundidadeMax == 1 else "O(n)"
         if profundidadeMax > 1:
+            pior = f"O(n^{profundidadeMax})"
+            melhor = "O(n)" if temCondicional else f"O(n^{profundidadeMax})"
             custo_total = f"{repet}n^{profundidadeMax} + {oper}"
         else:
+            pior = "O(n)"
+            melhor = "O(1)" if temCondicional else "O(n)"
             custo_total = f"{repet}n + {oper}"
-    else:
-        pior = melhor = "O(1)"
-        custo_total = f"{oper}"
 
     bigTheta = pior if pior == melhor else "Θ(?)"
     return pior, melhor, custo_total, bigTheta
 
 
 def analisador(lines):
-    loopCont = ifCont = functionCont = recursoesNaLinha = 0
+    loopCont = ifCont = functionCont = 0
     profundidadeMax = profundidadeAtual = oper = repet = 0
     temCondicional = False
     dentroDaFuncao = False
     nomeDaFuncaoAtual = None
+    totalRecursoes = 0
+    indentFuncao = 0
+
+    temCompreensaoLista = False
+    temSlicing = False
+    temAtribuicaoPivo = False
+    usaComparacaoPivo = False
 
     for line in lines:
         line_strip = line.strip()
@@ -51,11 +85,15 @@ def analisador(lines):
             functionCont += 1
             nomeDaFuncaoAtual = line_strip.split("def ")[1].split("(")[0]
             dentroDaFuncao = True
+            totalRecursoes = 0
+            indentFuncao = len(line) - len(line.lstrip())
+            continue
 
-        if dentroDaFuncao and not line_strip.startswith("def "):
-            chamadas = line_strip.count(f"{nomeDaFuncaoAtual}(")
-            if chamadas > 0:
-                recursoesNaLinha = max(recursoesNaLinha, chamadas)
+        if dentroDaFuncao and line.strip() and (len(line) - len(line.lstrip()) <= indentFuncao):
+            dentroDaFuncao = False
+
+        if dentroDaFuncao and nomeDaFuncaoAtual and f"{nomeDaFuncaoAtual}(" in line_strip:
+            totalRecursoes += line_strip.count(f"{nomeDaFuncaoAtual}(")
 
         if line_strip.startswith(("for", "while")):
             loopCont += 1
@@ -67,19 +105,38 @@ def analisador(lines):
             ifCont += 1
             temCondicional = True
 
-        if line_strip == "" or line_strip.startswith("pass"):
-            dentroDaFuncao = False
+        if "[" in line_strip and "for" in line_strip and " in " in line_strip and "]" in line_strip:
+            temCompreensaoLista = True
+        if "[" in line_strip and ":" in line_strip and "]" in line_strip:
+            temSlicing = True
+        if "pivot" in line_strip and "=" in line_strip and "arr[0]" in line_strip.replace(" ", ""):
+            temAtribuicaoPivo = True
+        if ("<= pivot" in line_strip) or ("> pivot" in line_strip):
+            usaComparacaoPivo = True
+
+        if line_strip == "" or line_strip.startswith("pass") or line_strip.startswith("return"):
             profundidadeAtual = max(0, profundidadeAtual - 1)
 
+    dividirParaConquistar = (totalRecursoes >= 2) and (temCompreensaoLista or temSlicing)
+    temParticionamento = (temCompreensaoLista or temSlicing)
+    pivotFixado = (temAtribuicaoPivo and usaComparacaoPivo)
+
     piorCaso, melhorCaso, custo_total, bigTheta = calculadoraDeComplexidade(
-        recursoesNaLinha, profundidadeMax, temCondicional, repet, oper
+        total_recursoes=totalRecursoes,
+        profundidadeMax=profundidadeMax,
+        temCondicional=temCondicional,
+        repet=repet,
+        oper=oper,
+        dividirParaConquistar=dividirParaConquistar,
+        temParticionamento=temParticionamento,
+        pivotFixado=pivotFixado
     )
 
     print("Análise do algoritmo em Python:")
     print(f"Quantidade de loops: {loopCont}")
     print(f"Quantidade de condicionais (if): {ifCont}")
     print(f"Quantidade de funções: {functionCont}")
-    print(f"Quantidade de recursões (máximo de chamadas em uma linha): {recursoesNaLinha}")
+    print(f"Total de chamadas recursivas detectadas: {totalRecursoes}")
     print(f"Complexidade no pior caso: {piorCaso}")
     print(f"Complexidade no melhor caso: {melhorCaso}")
 
@@ -95,7 +152,7 @@ def analisador(lines):
 
 
 def main():
-    diretorio = "fatorial.py"
+    diretorio = sys.argv[1] if len(sys.argv) > 1 else "quickSort.py"
     try:
         if os.path.exists(diretorio):
             with open(diretorio, encoding="utf-8") as f:
